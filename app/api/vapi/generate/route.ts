@@ -1,36 +1,96 @@
-import { generateText } from "ai";
-import { google } from "@ai-sdk/google";
-
 import { db } from "@/firebase/admin";
 import { getRandomInterviewCover } from "@/lib/utils";
+import { NextResponse as Response } from "next/server";
 
 export async function POST(request: Request) {
   const { type, role, level, techstack, amount, userid } = await request.json();
 
   try {
-    const { text: questions } = await generateText({
-      model: google("gemini-2.0-flash-001"),
-      prompt: `Prepare questions for a job interview.
-        The job role is ${role}.
-        The job experience level is ${level}.
-        The tech stack used in the job is: ${techstack}.
-        The focus between behavioural and technical questions should lean towards: ${type}.
-        The amount of questions required is: ${amount}.
-        Please return only the questions, without any additional text.
-        The questions are going to be read by a voice assistant so do not use "/" or "*" or any other special characters which might break the voice assistant.
-        Return the questions formatted like this:
-        ["Question 1", "Question 2", "Question 3"]
-        
-        Thank you! <3
-    `,
-    });
+    const response = await fetch(
+      "https://openrouter.ai/api/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${process.env.OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "openrouter/free",
+          messages: [
+            {
+              role: "user",
+              content: `You are an API. 
+Return ONLY a valid JSON array.
+
+Generate exactly ${amount} interview questions.
+
+Role: ${role}
+Level: ${level}
+Techstack: ${techstack}
+Focus: ${type}
+
+STRICT RULES:
+- Output must be valid JSON
+- No explanation
+- No numbering
+- No extra text
+
+Example:
+["Question 1","Question 2"]`,
+            },
+          ],
+        }),
+      }
+    );
+
+    const data = await response.json();
+    console.log("OpenRouter Response:", data);
+
+    // ✅ Extract safely
+    let text = data?.choices?.[0]?.message?.content || "";
+    console.log("RAW TEXT:", text);
+
+    let parsedQuestions: string[] = [];
+
+    try {
+      // clean markdown
+      let clean = text.replace(/```json|```/g, "").trim();
+
+      // extract JSON array
+      const match = clean.match(/\[.*\]/s);
+      if (match) {
+        parsedQuestions = JSON.parse(match[0]);
+      } else {
+        throw new Error("No JSON found");
+      }
+
+    } catch (err) {
+      console.log("Fallback parsing...");
+
+      // 🔥 fallback: split text into lines/questions
+      parsedQuestions = text
+        .split(/[\n?]+/)
+        .map(q => q.replace(/^\d+\.?\s*/, "").trim())
+        .filter(q => q.length > 5);
+    }
+
+    // 🔥 FINAL SAFETY (never empty)
+    if (!parsedQuestions || parsedQuestions.length === 0) {
+      parsedQuestions = [
+        "Explain React lifecycle methods.",
+        "What is server-side rendering in Next.js?",
+        "Difference between CSR and SSR?",
+        "What is useEffect and when is it used?",
+        "How does React handle state updates?"
+      ];
+    }
 
     const interview = {
-      role: role,
-      type: type,
-      level: level,
+      role,
+      type,
+      level,
       techstack: techstack.split(","),
-      questions: JSON.parse(questions),
+      questions: parsedQuestions,
       userId: userid,
       finalized: true,
       coverImage: getRandomInterviewCover(),
@@ -40,9 +100,13 @@ export async function POST(request: Request) {
     await db.collection("interviews").add(interview);
 
     return Response.json({ success: true }, { status: 200 });
-  } catch (error) {
+
+  } catch (error: any) {
     console.error("Error:", error);
-    return Response.json({ success: false, error: error }, { status: 500 });
+    return Response.json(
+      { success: false, error: error.message },
+      { status: 500 }
+    );
   }
 }
 
