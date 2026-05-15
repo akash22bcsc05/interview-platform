@@ -12,6 +12,7 @@
     "@ai-sdk/google": "^3.0.67",
     "@google/genai": "^1.51.0",
     "@hookform/resolvers": "^5.2.2",
+    "@openrouter/ai-sdk-provider": "^2.9.0",
     "@vapi-ai/web": "^2.5.2",
     "ai": "^6.0.174",
     "class-variance-authority": "^0.7.1",
