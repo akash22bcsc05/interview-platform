@@ -33,7 +33,7 @@ const Page = async () => {
             </Button>
 
             <Button asChild className='btn-primary max-sm:w-full'>
-              <Link href='https://chatbot-5f3x.vercel.app/'>Start Coding</Link>
+              <Link href='https://chatbot-coder.vercel.app/'>Start Coding</Link>
             </Button>
           </div>
         </div>
