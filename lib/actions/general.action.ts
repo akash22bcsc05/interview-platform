@@ -3,6 +3,7 @@
 import { feedbackSchema } from '@/constants';
 import { db } from '@/firebase/admin';
 import { generateObject } from 'ai';
+import { openrouter } from '@openrouter/ai-sdk-provider';
 
 
 export async function getInterviewsByUserId(userId: string): Promise<Interview[] | null>{
@@ -61,7 +62,7 @@ export async function createFeedback(params: CreateFeedbackParams) {
         )).join("");
 
         const {object : {totalScore, categoryScores, strengths, areasForImprovement, finalAssessment}} =await generateObject({
-            model:"openrouter/free", 
+            model: openrouter("mistralai/mistral-7b-instruct:free"), 
             structuredOutputs: false,
         
 

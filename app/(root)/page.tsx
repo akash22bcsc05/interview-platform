@@ -10,11 +10,11 @@ const Page = async () => {
   const user = await getCurrentUser();
 
   const [userInterviews, latestInterviews] = await Promise.all([
-    await getInterviewsByUserId(user?.id!),
-    await getLatestInterviews({ userId: user?.id! })
+    getInterviewsByUserId(user?.id!),
+    getLatestInterviews({ userId: user?.id! })
   ])
 
-  
+
 
   const hasPastInterviews = userInterviews?.length! > 0;
   const hasUpcomingInterviews = latestInterviews?.length! > 0;
@@ -27,9 +27,15 @@ const Page = async () => {
           <p className='text-lg'>
             Practice on real interview questions, get instant AI feedback.
           </p>
-          <Button asChild className='btn-primary max-sm:w-full'>
-            <Link href='/interview'>Start an Interview</Link>
-          </Button>
+          <div className='flex gap-4 max-sm:flex-col'>
+            <Button asChild className='btn-primary max-sm:w-full'>
+              <Link href='/interview'>Start an Interview</Link>
+            </Button>
+
+            <Button asChild className='btn-primary max-sm:w-full'>
+              <Link href='https://chatbot-5f3x.vercel.app/'>Start Coding</Link>
+            </Button>
+          </div>
         </div>
         <Image src='/robot.png' alt='robot' width={400} height={400} className='max-sm:hidden' />
       </section>
@@ -42,24 +48,24 @@ const Page = async () => {
             userInterviews?.map((interview) => (
               <InterviewCard {...interview} key={interview.id} />
             ))) : (
-          <p>You haven't taken any interviews yet.</p>
+            <p>You haven't taken any interviews yet.</p>
           )
-        }
+          }
         </div>
       </section>
 
       <section className='flex flex-col gap-6 mt-8'>
         <h2>Take an Interview</h2>
 
-        <div className='interviews-section'></div>
-        {hasUpcomingInterviews ? (
+        <div className='interviews-section'>
+          {hasUpcomingInterviews ? (
             latestInterviews?.map((interview) => (
               <InterviewCard {...interview} key={interview.id} />
             ))) : (
-          <p>There are no upcoming interviews available.</p>
+            <p>There are no upcoming interviews available.</p>
           )
-        }
-
+          }
+        </div>
         {/* <p>You haven't taken any interviews yet.</p> */}
       </section>
     </>

@@ -3,6 +3,7 @@ import { getRandomInterviewCover } from "@/lib/utils";
 import { NextResponse as Response } from "next/server";
 
 export async function POST(request: Request) {
+  console.log("POST HIT FROM WEB APP");
   const { type, role, level, techstack, amount, userid } = await request.json();
 
   try {
@@ -97,6 +98,7 @@ Example:
       createdAt: new Date().toISOString(),
     };
 
+    console.log("Saving Interview:", interview);
     await db.collection("interviews").add(interview);
 
     return Response.json({ success: true }, { status: 200 });
