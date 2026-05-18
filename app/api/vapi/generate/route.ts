@@ -23,7 +23,7 @@ export async function POST(request: Request) {
               content: `You are an API. 
 Return ONLY a valid JSON array.
 
-Generate exactly ${amount} interview questions.
+Generate exactly ${Number(amount)} interview questions.
 
 Role: ${role}
 Level: ${level}
@@ -47,7 +47,7 @@ Example:
     const data = await response.json();
     console.log("OpenRouter Response:", data);
 
-    // ✅ Extract safely
+   
     let text = data?.choices?.[0]?.message?.content || "";
     console.log("RAW TEXT:", text);
 
@@ -99,9 +99,10 @@ Example:
     };
 
     console.log("Saving Interview:", interview);
-    await db.collection("interviews").add(interview);
+    const docRef = await db.collection("interviews").add(interview);
+    console.log("INTERVIEW SAVED:", docRef.id);
 
-    return Response.json({ success: true }, { status: 200 });
+    return Response.json({ success: true, interviewId: docRef.id, }, { status: 200 });
 
   } catch (error: any) {
     console.error("Error:", error);

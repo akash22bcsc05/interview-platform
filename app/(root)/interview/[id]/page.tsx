@@ -5,8 +5,13 @@ import Image from 'next/image';
 import DisplayTechIcons from '@/components/DisplayTechIcons';
 import Agent from '@/components/Agent';
 import { getCurrentUser } from '@/lib/actions/auth.action';
+import { isAuthenticated } from '@/lib/actions/auth.action';
+
 
 const page = async ({ params }: RouteParams) => {
+    const isUserAuthenticated = await isAuthenticated();
+
+    if (!isUserAuthenticated) redirect('/sign-in');
     const { id } = await params;
     const user = await getCurrentUser();
     const interview = await getInterviewById(id);
