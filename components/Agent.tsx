@@ -31,8 +31,13 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
             setCallStatus(CallStatus.ACTIVE);
 
 
-        const onCallEnd = () =>
-            setCallStatus(CallStatus.FINISHED);
+        const onCallEnd = () => {
+            setCallStatus((prev) =>
+                prev === CallStatus.FINISHED
+                    ? prev
+                    : CallStatus.FINISHED
+            );
+        };
 
 
         const onMessage = (message: Message) => {
@@ -53,12 +58,12 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
         };
 
         const onError = (error: any) => {
-    if (error?.error?.errorMsg === "Meeting has ended") {
-        return;
-    }
+            if (error?.error?.errorMsg === "Meeting has ended") {
+                return;
+            }
 
-    console.log("Error:", error);
-};
+            console.log("Error:", error);
+        };
 
         vapi.on("call-start", onCallStart);
         vapi.on("call-end", onCallEnd);
@@ -96,22 +101,22 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
     };
 
     useEffect(() => {
-    if (
-        callStatus === CallStatus.FINISHED &&
-        !feedbackGenerated
-    ) {
-        setFeedbackGenerated(true);
+        if (
+            callStatus === CallStatus.FINISHED &&
+            !feedbackGenerated
+        ) {
+            setFeedbackGenerated(true);
 
-        if (type === "generate") {
-    setTimeout(() => {
-        router.refresh();
-        router.push("/");
-    }, 5000);
-        } else {
-            handlegenerateFeedback(messages);
+            if (type === "generate") {
+                setTimeout(() => {
+                    router.refresh();
+                    router.push("/");
+                }, 5000);
+            } else {
+                handlegenerateFeedback(messages);
+            }
         }
-    }
-}, [callStatus]);
+    }, [callStatus]);
 
     const handleCall = async () => {
         setCallStatus(CallStatus.CONNECTING);
@@ -146,7 +151,18 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
     const handleDisconnect = async () => {
         // setCallStatus(CallStatus.FINISHED);
 
-        vapi.stop();
+        try {
+            await vapi.stop();
+        } catch (error: any) {
+            if (
+                error?.error?.errorMsg === "Meeting has ended" ||
+                error?.message?.includes("Meeting has ended")
+            ) {
+                return;
+            }
+
+            console.log(error);
+        }
     }
 
     const latestMessage = messages[messages.length - 1]?.content;
