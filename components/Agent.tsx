@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 import { createFeedback } from "@/lib/actions/general.action";
 import { vapi } from "@/lib/vapi.sdk";
+import { interviewer } from "@/constants/index";
 
 enum CallStatus {
     INACTIVE = "INACTIVE",
@@ -140,7 +141,7 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
                     .join("\n");
             }
 
-            await vapi.start('interviewer', {
+            await vapi.start(interviewer, {
                 variableValues: {
                     questions: formattedQuestions,
                 },
