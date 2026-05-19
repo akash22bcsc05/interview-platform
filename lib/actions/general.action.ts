@@ -83,7 +83,7 @@ export async function createFeedback(params: CreateFeedbackParams) {
                 )).join("");
 
         const { object: { totalScore, categoryScores, strengths, areasForImprovement, finalAssessment } } = await generateObject({
-            model: openrouter("meta-llama/llama-3.1-8b-instruct:free"),
+            model: openrouter("openrouter/free"),
             structuredOutputs: true,
 
 

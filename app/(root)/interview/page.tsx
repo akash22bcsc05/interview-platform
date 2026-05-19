@@ -55,7 +55,7 @@ const Page = async () => {
           />
 
           <section className="mt-10">
-            <h3>Your Interviews</h3>
+            {/* <h3>Your Interviews</h3> */}
 
             {/* interview cards go here */}
           </section>

@@ -1,6 +1,7 @@
 'use client'
 
 import Image from 'next/image'
+import Link from 'next/link'
 import { cn } from "@/lib/utils"
 import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
@@ -20,17 +21,33 @@ interface SavedMessage {
     content: string;
 }
 
-const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) => {
+const Agent = ({
+    userName,
+    userId,
+    type,
+    interviewId,
+    questions
+}: AgentProps) => {
+
     const router = useRouter();
+
     const [isSpeaking, setIsSpeaking] = useState(false);
-    const [callStatus, setCallStatus] = useState<CallStatus>(CallStatus.INACTIVE);
+
+    const [callStatus, setCallStatus] = useState<CallStatus>(
+        CallStatus.INACTIVE
+    );
+
     const [messages, setMessages] = useState<SavedMessage[]>([]);
+
     const [feedbackGenerated, setFeedbackGenerated] = useState(false);
 
-    useEffect(() => {
-        const onCallStart = () =>
-            setCallStatus(CallStatus.ACTIVE);
+    const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
 
+    useEffect(() => {
+
+        const onCallStart = () => {
+            setCallStatus(CallStatus.ACTIVE);
+        };
 
         const onCallEnd = () => {
             setCallStatus((prev) =>
@@ -40,30 +57,41 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
             );
         };
 
-
         const onMessage = (message: Message) => {
-            if (message.type === "transcript" && message.transcriptType === "final") {
-                const newMessage = { role: message.role, content: message.transcript };
+
+            if (
+                message.type === "transcript" &&
+                message.transcriptType === "final"
+            ) {
+
+                const newMessage = {
+                    role: message.role,
+                    content: message.transcript
+                };
+
                 setMessages((prev) => [...prev, newMessage]);
             }
         };
 
         const onSpeechStart = () => {
-            console.log("speech start");
             setIsSpeaking(true);
         };
 
         const onSpeechEnd = () => {
-            console.log("speech end");
             setIsSpeaking(false);
         };
 
         const onError = (error: any) => {
-            if (error?.error?.errorMsg === "Meeting has ended") {
+
+            // Ignore harmless Vapi hangup errors
+            if (
+                error?.error?.errorMsg === "Meeting has ended" ||
+                error?.message?.includes("Meeting has ended")
+            ) {
                 return;
             }
 
-            console.log("Error:", error);
+            console.log("Vapi Error:", error);
         };
 
         vapi.on("call-start", onCallStart);
@@ -81,80 +109,129 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
             vapi.off("speech-end", onSpeechEnd);
             vapi.off("error", onError);
         };
+
     }, []);
 
-    const handlegenerateFeedback = async (messages: SavedMessage[]) => {
-        console.log("Generating feedback with messages.");
+    const handlegenerateFeedback = async (
+        messages: SavedMessage[]
+    ) => {
 
-        const { success, feedbackId: id } = await createFeedback({
-            interviewId: interviewId!,
-            userId: userId!,
-            transcript: messages
+        if (!interviewId || !userId) return;
 
-        })
+        try {
 
-        if (success && id) {
-            router.push(`/interview/${interviewId}/feedback`);
-        } else {
-            console.error("Error saving feedback.");
-            router.push('/');
+            setIsGeneratingFeedback(true);
+
+            console.log("Generating feedback...");
+
+            const { success, feedbackId: id } =
+                await createFeedback({
+                    interviewId,
+                    userId,
+                    transcript: messages
+                });
+
+            if (success && id) {
+                router.push(`/interview/${interviewId}/feedback`);
+            } else {
+                console.error("Error saving feedback.");
+            }
+
+        } catch (error) {
+
+            console.log(error);
+
+        } finally {
+
+            setIsGeneratingFeedback(false);
         }
     };
 
     useEffect(() => {
+
         if (
             callStatus === CallStatus.FINISHED &&
             !feedbackGenerated
         ) {
+
             setFeedbackGenerated(true);
 
+            // ONLY auto refresh for generate workflow
             if (type === "generate") {
+
                 setTimeout(() => {
                     router.refresh();
                     router.push("/");
-                }, 5000);
-            } else {
-                handlegenerateFeedback(messages);
+                }, 2000);
+
             }
         }
+
     }, [callStatus]);
 
     const handleCall = async () => {
-        setCallStatus(CallStatus.CONNECTING);
 
-        if (type === "generate") {
-            await vapi.start(
-                undefined,
-                undefined,
-                undefined,
-                process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!, {
-                variableValues: {
-                    username: userName,
-                    userid: userId,
-                },
+        try {
+
+            setCallStatus(CallStatus.CONNECTING);
+
+            // Ensure mic permission
+            await navigator.mediaDevices.getUserMedia({
+                audio: true,
             });
-        } else {
-            let formattedQuestions = '';
 
-            if (questions) {
-                formattedQuestions = questions.map((question) => `- ${question}`)
-                    .join("\n");
+            if (type === "generate") {
+
+                await vapi.start(
+                    undefined,
+                    undefined,
+                    undefined,
+                    process.env.NEXT_PUBLIC_VAPI_WORKFLOW_ID!,
+                    {
+                        variableValues: {
+                            username: userName,
+                            userid: userId,
+                        },
+                    }
+                );
+
+            } else {
+
+                let formattedQuestions = '';
+
+                if (questions) {
+
+                    formattedQuestions = questions
+                        .map((question) => `- ${question}`)
+                        .join("\n");
+                }
+
+                await vapi.start(interviewer, {
+                    variableValues: {
+                        questions: formattedQuestions,
+                    },
+                });
             }
 
-            await vapi.start(interviewer, {
-                variableValues: {
-                    questions: formattedQuestions,
-                },
-            });
+        } catch (error) {
+
+            console.log(error);
+
+            setCallStatus(CallStatus.INACTIVE);
         }
     };
 
     const handleDisconnect = async () => {
-        // setCallStatus(CallStatus.FINISHED);
 
         try {
+            if (callStatus !== CallStatus.ACTIVE) return;
+
+            setCallStatus(CallStatus.FINISHED);
+
             await vapi.stop();
+
         } catch (error: any) {
+
             if (
                 error?.error?.errorMsg === "Meeting has ended" ||
                 error?.message?.includes("Meeting has ended")
@@ -164,26 +241,46 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
 
             console.log(error);
         }
-    }
+    };
 
-    const latestMessage = messages[messages.length - 1]?.content;
-    const isCallInactiveorFinished = callStatus === CallStatus.INACTIVE || callStatus === CallStatus.FINISHED;
+    const latestMessage =
+        messages[messages.length - 1]?.content;
+
+    const isCallInactiveorFinished =
+        callStatus === CallStatus.INACTIVE ||
+        callStatus === CallStatus.FINISHED;
 
     return (
         <>
+
             <div className='call-view'>
+
                 <div className='card-interviewer'>
+
                     <div className='avatar'>
-                        <Image src="/ai-avatar.png" alt="vapi"
+
+                        <Image
+                            src="/ai-avatar.png"
+                            alt="vapi"
                             width={65}
-                            height={54} className='object-cover' />
-                        {isSpeaking && <span className="animate-speak" />}
+                            height={54}
+                            className='object-cover'
+                        />
+
+                        {isSpeaking && (
+                            <span className="animate-speak" />
+                        )}
+
                     </div>
+
                     <h3>AI Interviewer</h3>
+
                 </div>
 
                 <div className="card-border">
+
                     <div className="card-content">
+
                         <Image
                             src="/user-avatar.png"
                             alt="user-avatar"
@@ -191,44 +288,102 @@ const Agent = ({ userName, userId, type, interviewId, questions }: AgentProps) =
                             height={540}
                             className="rounded-full object-cover size-[120px]"
                         />
+
                         <h3>{userName}</h3>
+
                     </div>
+
                 </div>
+
             </div>
+
             {messages.length > 0 && (
+
                 <div className="transcript-border">
+
                     <div className="transcript">
+
                         <p
-                            key={latestMessage} className={cn(
+                            key={latestMessage}
+                            className={cn(
                                 "transition-opacity duration-500 opacity-0",
                                 "animate-fadeIn opacity-100"
-                            )}>
+                            )}
+                        >
                             {latestMessage}
                         </p>
+
                     </div>
+
                 </div>
             )}
 
+            <div className='w-full flex justify-center mt-6'>
 
-            <div className='w-full flex justify-center'>
                 {callStatus !== 'ACTIVE' ? (
-                    <button className='relative btn-call' onClick={handleCall}>
-                        <span className={cn("absolute animate-ping rounded-full opacity-75",
-                            callStatus !== "CONNECTING" && "hidden"
-                        )}
+
+                    <button
+                        className='relative btn-call'
+                        onClick={handleCall}
+                    >
+
+                        <span
+                            className={cn(
+                                "absolute animate-ping rounded-full opacity-75",
+                                callStatus !== "CONNECTING" && "hidden"
+                            )}
                         />
 
                         <span>
-                            {isCallInactiveorFinished ? 'Call' : '. . .'}
+                            {isCallInactiveorFinished
+                                ? 'Call'
+                                : '. . .'}
                         </span>
+
                     </button>
+
                 ) : (
-                    <button className='btn-disconnect' onClick={handleDisconnect}>
+
+                    <button
+                        className='btn-disconnect'
+                        onClick={handleDisconnect}
+                    >
                         End
                     </button>
                 )}
 
             </div>
+
+            {/* AFTER CALL ENDS */}
+
+            {callStatus === CallStatus.FINISHED && (
+
+                <div className='flex items-center justify-center gap-4 mt-8 flex-wrap'>
+
+                    <Link
+                        href="/"
+                        className='px-5 py-3 rounded-xl bg-primary-200 text-black font-semibold hover:opacity-90 transition'
+                    >
+                        Go To Dashboard
+                    </Link>
+
+                    {type === "interview" && (
+                        <button
+                            className='px-5 py-3 rounded-xl bg-primary-200 text-black font-semibold hover:opacity-90 transition'
+                            onClick={() =>
+                                handlegenerateFeedback(messages)
+                            }
+                            disabled={isGeneratingFeedback}
+                        >
+                            {isGeneratingFeedback
+                                ? "Generating Feedback..."
+                                : "Go To Feedback"}
+                        </button>
+                    )}
+
+                </div>
+            )}
+
         </>
     )
 }
