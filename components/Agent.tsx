@@ -182,6 +182,9 @@ const Agent = ({
 
             if (type === "generate") {
 
+                console.log("STARTING VAPI...");
+                console.log("TYPE:", type);
+
                 await vapi.start(
                     undefined,
                     undefined,
@@ -205,11 +208,43 @@ const Agent = ({
                         .map((question) => `- ${question}`)
                         .join("\n");
                 }
+                console.log("STARTING VAPI...");
+                console.log("TYPE:", type);
+                console.log("QUESTIONS:", formattedQuestions);
+                console.log("VAPI INSTANCE:", vapi);
 
                 await vapi.start(interviewer, {
                     variableValues: {
                         questions: formattedQuestions,
                     },
+                });
+                navigator.mediaDevices
+                    .enumerateDevices()
+                    .then(devices => {
+                        console.log("DEVICES:", devices);
+                    });
+                vapi.on("call-start", () => {
+                    console.log("CALL STARTED");
+                });
+
+                vapi.on("speech-start", () => {
+                    console.log("ASSISTANT STARTED SPEAKING");
+                });
+
+                vapi.on("speech-end", () => {
+                    console.log("ASSISTANT STOPPED SPEAKING");
+                });
+
+                vapi.on("message", (message) => {
+                    console.log("MESSAGE:", message);
+                });
+
+                vapi.on("error", (error) => {
+                    console.log("VAPI ERROR:", error);
+                });
+
+                vapi.on("call-end", () => {
+                    console.log("CALL ENDED");
                 });
             }
 

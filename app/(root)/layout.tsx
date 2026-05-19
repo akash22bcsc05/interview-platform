@@ -40,7 +40,7 @@ const RootLayout = async ({
                     {user ? (
 
                         <a
-                            href="/sign-out"
+                            href="/sign-in"
                             
                 
                         >
