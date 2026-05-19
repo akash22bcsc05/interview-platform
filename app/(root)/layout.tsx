@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import { ReactNode } from 'react'
 import Link from "next/link"
 import Image from "next/image"
@@ -39,7 +41,8 @@ const RootLayout = async ({
 
                         <a
                             href="/sign-out"
-                            className='px-4 py-2 rounded-lg bg-primary-200 text-black font-semibold hover:opacity-90 transition'
+                            
+                
                         >
                             Sign Out
                         </a>

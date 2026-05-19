@@ -1,31 +1,42 @@
 'use client'
 
 import { useEffect } from 'react';
-import { useClerk } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
 
 const Page = () => {
 
-    const { signOut } = useClerk();
-    const router = useRouter();
-
     useEffect(() => {
 
-        const logout = async () => {
+        // Clear Clerk cookies manually
+        document.cookie.split(";").forEach((cookie) => {
 
-            await signOut();
+            const eqPos = cookie.indexOf("=");
 
-            router.push('/sign-in');
-        };
+            const name =
+                eqPos > -1
+                    ? cookie.substr(0, eqPos).trim()
+                    : cookie.trim();
 
-        logout();
+            document.cookie =
+                `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/`;
+        });
+
+        // Clear browser storage
+        localStorage.clear();
+        sessionStorage.clear();
+
+        // Hard reload homepage
+        window.location.href = '/';
 
     }, []);
 
     return (
-        <p className="text-center mt-20">
-            Signing out...
-        </p>
+        <div className="flex justify-center items-center h-screen">
+
+            <p className="text-lg">
+                Signing out...
+            </p>
+
+        </div>
     );
 };
 

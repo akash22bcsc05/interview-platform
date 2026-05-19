@@ -6,7 +6,7 @@ import { generateObject } from 'ai';
 import { openrouter } from '@openrouter/ai-sdk-provider';
 
 
-export async function getInterviewsByUserId(userId: string): Promise<Interview[] | null> {
+export async function getInterviewsByUserId(userId: string): Promise<Interview[]> {
     if (!userId) return [];
 
     const interviews = await db
