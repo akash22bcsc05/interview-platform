@@ -2,7 +2,7 @@
 
 import { feedbackSchema } from '@/constants';
 import { db } from '@/firebase/admin';
-import { generateObject } from 'ai';
+import { generateText } from 'ai';
 import { openrouter } from '@openrouter/ai-sdk-provider';
 
 
@@ -68,63 +68,111 @@ export async function getInterviewById(id: string): Promise<Interview | null> {
     } as Interview;
 }
 
-export async function createFeedback(params: CreateFeedbackParams) {
-    const { interviewId, userId, transcript } = params;
+export async function createFeedback(
+    params: CreateFeedbackParams
+) {
 
-
+    const {
+        interviewId,
+        userId,
+        transcript
+    } = params;
 
     try {
+
         const formattedTranscript = transcript
             .map(
-
-                (sentence: { role: string; content: string }) => (
-
+                (
+                    sentence: {
+                        role: string;
+                        content: string;
+                    }
+                ) => (
                     ` - ${sentence.role} : ${sentence.content}\n`
-                )).join("");
+                )
+            )
+            .join("");
 
-        const { object: { totalScore, categoryScores, strengths, areasForImprovement, finalAssessment } } = await generateObject({
+        const { text } = await generateText({
+
             model: openrouter("openrouter/free"),
-            schema: feedbackSchema,
-            prompt: `
-        You are an AI interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories. Be thorough and detailed in your analysis. Don't be lenient with the candidate. If there are mistakes or areas for improvement, point them out.
-        Transcript:
-        ${formattedTranscript}
 
-        Please score the candidate from 0 to 100 in the following areas. Do not add categories other than the ones provided:
-        - **Communication Skills**: Clarity, articulation, structured responses.
-        - **Technical Knowledge**: Understanding of key concepts for the role.
-        - **Problem-Solving**: Ability to analyze problems and propose solutions.
-        - **Cultural & Role Fit**: Alignment with company values and job role.
-        - **Confidence & Clarity**: Confidence in responses, engagement, and clarity.
-        `,
+            prompt: `
+Return ONLY valid JSON.
+
+{
+  "totalScore": number,
+  "categoryScores": {
+    "communicationSkills": number,
+    "technicalKnowledge": number,
+    "problemSolving": number,
+    "culturalAndRoleFit": number,
+    "confidenceAndClarity": number
+  },
+  "strengths": [string],
+  "areasForImprovement": [string],
+  "finalAssessment": string
+}
+
+Analyze this interview transcript:
+
+${formattedTranscript}
+`,
             system:
-                "You are a professional interviewer analyzing a mock interview. Your task is to evaluate the candidate based on structured categories",
+                "You are a professional AI interviewer.",
         });
 
-        const feedback = await db.collection('feedback').add({
-            interviewId,
-            userId,
+        console.log("RAW AI RESPONSE:", text);
+
+        const clean = text
+            .replace(/```json/g, "")
+            .replace(/```/g, "")
+            .trim();
+
+        const parsed = JSON.parse(clean);
+
+        const {
             totalScore,
             categoryScores,
             strengths,
             areasForImprovement,
             finalAssessment,
-            createdAt: new Date().toISOString(),
-        })
+        } = parsed;
+
+        const feedback = await db
+            .collection('feedback')
+            .add({
+
+                interviewId,
+                userId,
+
+                totalScore,
+                categoryScores,
+                strengths,
+                areasForImprovement,
+                finalAssessment,
+
+                createdAt:
+                    new Date().toISOString(),
+            });
 
         return {
+
             success: true,
             feedbackId: feedback.id,
-        }
+        };
 
     } catch (e) {
-        console.log('Error saving feedback', e)
+
+        console.log(
+            'Error saving feedback',
+            e
+        );
 
         return {
             success: false,
-        }
+        };
     }
-
 }
 
 export async function getFeedbackByInterviewId(params: GetFeedbackByInterviewIdParams): Promise<Feedback | null> {
