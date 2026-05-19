@@ -6,16 +6,16 @@ import Link from "next/link";
 import DisplayTechIcons from "./DisplayTechIcons";
 import { getFeedbackByInterviewId } from "@/lib/actions/general.action";
 
-const InterviewCard = async({ id, userId, role, type, techstack, createdAt }: InterviewCardProps) => {
+const InterviewCard = async ({ id, userId, role, type, techstack, createdAt }: InterviewCardProps) => {
     const feedback = userId && id
-    ? await getFeedbackByInterviewId({interviewId: id,userId})
-    : null;
+        ? await getFeedbackByInterviewId({ interviewId: id, userId })
+        : null;
     const normalizedType = /mix/gi.test(type) ? "Mixed" : type;
     const formattedDate = dayjs(feedback?.createdAt || createdAt || Date.now()).format("MMM D, YYYY");
 
     return (
         <div>
-            <div className="card-border w-[360px] max-sm:w-full min-h-96">
+            <div className="card-border w-90 max-sm:w-full min-h-96">
 
                 <div className="card-interview">
                     <div>
@@ -33,26 +33,80 @@ const InterviewCard = async({ id, userId, role, type, techstack, createdAt }: In
                                 <Image src="/calendar.svg" alt="calendar" width={22} height={22} />
                                 <p>{formattedDate}</p>
                             </div>
-                            
+
                             <div className="flex flex-row gap-2 items-center">
                                 <Image src="/star.svg" alt="star" width={22} height={22} />
-                                <p>{feedback?.totalScore || '---'}/100</p>
+                                <p
+                                    className={
+                                        feedback?.totalScore || 0 >= 75
+                                            ? "text-green-400"
+                                            : feedback?.totalScore || 0 >= 50
+                                                ? "text-yellow-400"
+                                                : "text-red-400"
+                                    }
+                                >
+                                    {feedback?.totalScore || "---"}/100
+                                </p>
                             </div>
                         </div>
-                        <p className="line-clamp-2 mt-5">
-                            {feedback?.finalAssessment || "You haven't taken the interview yet. Take it now to improve your skills."}
-                        </p>
+                        <div className="mt-5">
+
+                            {feedback ? (
+
+                                <div className="flex flex-col gap-2">
+
+                                    <p className="line-clamp-2 text-sm text-light-100">
+
+                                        {feedback.finalAssessment}
+
+                                    </p>
+
+                                    {feedback.strengths?.length > 0 && (
+
+                                        <div className="flex flex-wrap gap-2 mt-2">
+
+                                            {feedback.strengths
+                                                .slice(0, 2)
+                                                .map((strength, index) => (
+
+                                                    <span
+                                                        key={index}
+                                                        className="px-2 py-1 rounded-md bg-primary-200/20 text-primary-100 text-xs"
+                                                    >
+                                                        {strength}
+                                                    </span>
+
+                                                ))}
+
+                                        </div>
+
+                                    )}
+
+                                </div>
+
+                            ) : (
+
+                                <p className="line-clamp-2 text-sm text-light-100">
+
+                                    You haven't taken the interview yet.
+                                    Take it now to improve your skills.
+
+                                </p>
+
+                            )}
+
+                        </div>
                     </div>
 
                     <div className="flex flex-row justify-between">
                         <DisplayTechIcons techStack={techstack} />
                         <Button className="btn-primary">
-                            <Link href={feedback ? 
-                            `/interview/${id}/feedback` 
-                            : 
-                            `/interview/${id}`}>
-                            {feedback ? "Check Feedback" : "View Interview"}
-                                </Link>
+                            <Link href={feedback ?
+                                `/interview/${id}/feedback`
+                                :
+                                `/interview/${id}`}>
+                                {feedback ? "Check Feedback" : "View Interview"}
+                            </Link>
                         </Button>
                     </div>
                 </div>
